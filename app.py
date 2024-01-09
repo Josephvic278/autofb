@@ -15,8 +15,14 @@ def read_db():
 fb_url = "https://graph.facebook.com/"
 fb_post_url = "https://graph.facebook.com/v18.0/"
 fb_pageid = "178991528619934"
-fb_access_token = "EAAaoVZBbk8OQBOzD0VjtABtbZABewOiMqUld9t9l0ZB5uUlZC63JlGa4Dz9ZBhqZA9VbPH7v5euFkbNmJHkSiHrSEA8BRPphbXfvfAYAZAv3iMqK8G0rkaZAlRZCgaQfe99ddYMBsYICzVj0yhitteammN8ZB33pnnN7n3K9SZCZBR92hWUV7ByQ1JWY6lYe8NRZA1etqZCM6Ci2zHpHFNyCBofypdwCzj"
+user_id = "186932934202197"
+fb_access_token = "EAAaoVZBbk8OQBO2QNGecW1YNoMHbLiufXyUMQKhtFxQ48N5ehy3Bo1xiphT35ZB5ndVfHkjTlPvapSqZAoMfGHjcbM0JCAp4MSSuCZCyf5TadHitAZCGdLpmwf4ETQp9pxJuYdkMz2eGfzZCKrGVZArnYUGmreZARjFQCG9P28h8SZB6OoPH5G7VrN1Xins4w2iYRZAbdJBEb3GqNZAPHheZAgZDZD"
 manchesterCityNewsUrl = "https://www.manchestercity.news/"
+
+fb_post_header = {
+        "Content-Type" : "application/json"
+    }
+
 def format_headline(headline):
     format_headline_u = headline.lower()
 
@@ -24,6 +30,20 @@ def soup_data(url):
       r = requests.get(url)
       soup = BeautifulSoup(r.content, 'html.parser')      
       return soup
+
+def get_access_token():
+    get_token = requests.get(f"https://graph.facebook.com/{user_id}/accounts?access_token={fb_access_token}").json()["data"][0]["access_token"]
+    
+    return get_token
+                  
+def cut_sentence(sentence):
+    
+    cut_sentence = None
+    result = re.search(r'^.*?\.', sentence)
+    if result:
+        cut_sentence = result.group(0)
+        
+    return cut_sentence
 
 def extract_link(link):
     link_pattern = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
@@ -58,15 +78,10 @@ def post_headline():
     
     getHeadlineDetail = soup_data(url)
     hd = getHeadlineDetail.find('div', id = 'page').find('div', class_ = 'content').find('main').find('article').find_all('h2')
-    print(hd)
-    
-    postHeadlineHeader = {
-        "Content-Type" : "application/json"
-    }
-    
+    new_access_token = get_access_token()
     post_data = {
-        "access_token" : fb_access_token,
-        "message" : headline,
+        "access_token" : new_access_token,
+        "message" : headline+" #mancity",
         "url" : banner_image
     }
     
@@ -79,7 +94,7 @@ def post_headline():
     if headline_data not in db["posted"]:
         db["posted"].append(headline_data)
         
-        postHeadline = requests.post(url=f"{fb_post_url}/{fb_pageid}/photos", headers = postHeadlineHeader, data = post_data)
+        postHeadline = requests.post(url=f"{fb_post_url}/{fb_pageid}/photos", headers = fb_post_header, data = post_data)
         
         with open(json_path, "w") as write_file:
             json.dump(db, write_file)                    
@@ -91,7 +106,67 @@ def post_headline():
             
     print(headline_data)
 
+def post_article(article_list):
+    
+    db = read_db()
+    for get_article in article_list:
+        if get_article not in db["posted"]:
+            
+            for content_data , photo_data in get_article.items():
+                content = content_data
+                photo = photo_data
+                
+            new_access_token = get_access_token()
+            post_data = {
+                "access_token" : new_access_token,
+                "message" : content+" #mancity",
+                "url" :  photo
+            }
+            
+            postArticle = requests.post(url = f"{fb_post_url}/{fb_pageid}/photos", headers = fb_post_header, data=post_data)
+            print(postArticle.json())
+            if postArticle.status_code == 200:
+                postArticle.json()
+                
+                db["posted"].append(get_article)
+                with open(json_path, 'w') as write_db:
+                    json.dump(db, write_db)
+                    
+            else:
+                postArticle.json()
+            
+            #postArticle = requests.post(url=f"{fb_post_url}/{fb_pageid}/photos", headers = fb_post_header, data=post_data)
+    
+def get_articles():
+    soup = soup_data(manchesterCityNewsUrl)
+    content_article = None
+    content_image = None
+    
+    db = read_db()
+    articles_data = []
+    
+    get_articles = soup.find_all('article', class_ = 'article')
+    for article in get_articles:        
+        article_content = article.find('div', class_ = 'article-content').find('div', class_='article-excerpt')
+        
+        if article_content!= None:
+            content = article_content.find('p')
+            content_article = cut_sentence(content.text)
+            if content_article!=None and len(content_article)>20:                
+                article_image = article.find('div', class_ = 'article-image').find('a')
+                content_image = article_image.find('img').get('src')
+            
+                #print (content_article, content_image)
+                #print("...")
+            
+                articles_data.append({content_article:content_image})
+        
+        #print(article_content)
+    post_article(articles_data)
+    return articles_data
+    #print(get_articles)
+    
 schedule.every(30).minutes.do(post_headline)
-
+schedule.every(1).minute.do(get_articles)
 while True:
     schedule.run_pending()
