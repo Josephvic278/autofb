@@ -32,7 +32,9 @@ def soup_data(url):
       return soup
 
 def get_access_token():
-    get_token = requests.get(f"https://graph.facebook.com/{user_id}/accounts?access_token={fb_access_token}").json()["data"][0]["access_token"]
+    user_access_token = requests.get("https://graph.facebook.com/v18.0/oauth/access_token? grant_type=fb_exchange_token& client_id=1873945349648612& client_secret=55bba1eeeb0d144e74093c05d8c09010& fb_exchange_token=EAAaoVZBbk8OQBOZBaBehfEOrcfVBuqJhHEbUbBgaTD4TBMIWGvFvdkQuEODFwDjpkQUvgpZAUdv2AIcAFSaornY9FeeEAXkGS1JUmeEDKhxeWZAfPOh1DyrL7Arg2Jy75d97HlfKGkFfPhZAsHW29eLHG4w3I3PRhcLEGZCvoiA52yHAO1r9OVnURndFfJbRS2pl9XGlM69MiL4qnmghEZD").json()["access_token"]
+    
+    get_token = requests.get(f"https://graph.facebook.com/{user_id}/accounts?access_token={user_access_token}").json()["data"][0]["access_token"]
     
     return get_token
                   
@@ -124,9 +126,9 @@ def post_article(article_list):
             }
             
             postArticle = requests.post(url = f"{fb_post_url}/{fb_pageid}/photos", headers = fb_post_header, data=post_data)
-            print(postArticle.json())
+            #print(postArticle.json())
             if postArticle.status_code == 200:
-                postArticle.json()
+                print(postArticle.json())
                 
                 db["posted"].append(get_article)
                 with open(json_path, 'w') as write_db:
@@ -167,6 +169,8 @@ def get_articles():
     #print(get_articles)
     
 schedule.every(30).minutes.do(post_headline)
-schedule.every(1).minute.do(get_articles)
+schedule.every(30).seconds.do(get_articles)
+
+#print (get_access_token())
 while True:
     schedule.run_pending()
