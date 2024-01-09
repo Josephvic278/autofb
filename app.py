@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import os
 import json
 import re
-import threading
+import schedule , time
 
 json_path = os.getcwd()+"/database.json"
 
@@ -57,6 +57,8 @@ def post_headline():
         banner_image = get_img.get('src')
     
     getHeadlineDetail = soup_data(url)
+    hd = getHeadlineDetail.find('div', id = 'page').find('div', class_ = 'content').find('main').find('article').find_all('h2')
+    print(hd)
     
     postHeadlineHeader = {
         "Content-Type" : "application/json"
@@ -70,21 +72,26 @@ def post_headline():
     
     headline_data = {
         "headline" : headline,
-        "banner_image" : banner_image
-        
+        "banner_image" : banner_image       
     }
     
     db = read_db()
     if headline_data not in db["posted"]:
         db["posted"].append(headline_data)
+        
+        postHeadline = requests.post(url=f"{fb_post_url}/{fb_pageid}/photos", headers = postHeadlineHeader, data = post_data)
+        
         with open(json_path, "w") as write_file:
-            json.dump(db, write_file)
-            
-        #postHeadline = requests.post(url=f"{fb_post_url}/{fb_pageid}/photos", headers = postHeadlineHeader, data = post_data)
+            json.dump(db, write_file)                    
     
-    """if postHeadline.status_code == 200:
+        if postHeadline.status_code == 200:
             print(postHeadline.json())
-    else:
-            print(postHeadline.json())"""
+        else:
+            print(postHeadline.json())
+            
+    print(headline_data)
 
-print(post_headline())
+schedule.every(30).minutes.do(post_headline)
+
+while True:
+    schedule.run_pending()
