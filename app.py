@@ -4,18 +4,22 @@ import os
 import json
 import re
 import schedule , time
+#import ai21
 
 json_path = os.getcwd()+"/database.json"
+access_token_path = os.getcwd()+"/access_token.txt"
 
 def read_db():
     with open(json_path, "r") as read_file:
         db = json.load(read_file)
     return db
-    
+
+sum_url = "https://api.apyhub.com/ai/summarize-url" 
 fb_url = "https://graph.facebook.com/"
 fb_post_url = "https://graph.facebook.com/v18.0/"
 fb_pageid = "178991528619934"
 user_id = "186932934202197"
+ai21_api = "5ms71gHrJ8u9JOyjiAnpqoB6AcseeLDC"
 fb_access_token = "EAAaoVZBbk8OQBO2QNGecW1YNoMHbLiufXyUMQKhtFxQ48N5ehy3Bo1xiphT35ZB5ndVfHkjTlPvapSqZAoMfGHjcbM0JCAp4MSSuCZCyf5TadHitAZCGdLpmwf4ETQp9pxJuYdkMz2eGfzZCKrGVZArnYUGmreZARjFQCG9P28h8SZB6OoPH5G7VrN1Xins4w2iYRZAbdJBEb3GqNZAPHheZAgZDZD"
 manchesterCityNewsUrl = "https://www.manchestercity.news/"
 
@@ -23,6 +27,21 @@ fb_post_header = {
         "Content-Type" : "application/json"
     }
 
+def summarise_article(url):
+    payload = {
+    "url": url
+    }
+    headers = {
+    'apy-token': "APY0v5n80CH5uKwtKKntcsZb601G87bsLt0mnlyZhRuODBIwUw0SsitjL9Rba1glzs",
+    'Content-Type': "application/json"
+    }
+
+    response = requests.post(sum_url, json=payload,headers=headers).json()["data"]["summary"]
+
+    #print(response.text)
+    
+    return response
+    
 def format_headline(headline):
     format_headline_u = headline.lower()
 
@@ -31,10 +50,24 @@ def soup_data(url):
       soup = BeautifulSoup(r.content, 'html.parser')      
       return soup
 
-def get_access_token():
-    user_access_token = requests.get("https://graph.facebook.com/v18.0/oauth/access_token? grant_type=fb_exchange_token& client_id=1873945349648612& client_secret=55bba1eeeb0d144e74093c05d8c09010& fb_exchange_token=EAAaoVZBbk8OQBOZBaBehfEOrcfVBuqJhHEbUbBgaTD4TBMIWGvFvdkQuEODFwDjpkQUvgpZAUdv2AIcAFSaornY9FeeEAXkGS1JUmeEDKhxeWZAfPOh1DyrL7Arg2Jy75d97HlfKGkFfPhZAsHW29eLHG4w3I3PRhcLEGZCvoiA52yHAO1r9OVnURndFfJbRS2pl9XGlM69MiL4qnmghEZD").json()["access_token"]
+def exchange_token():
+    access_token = None
+    with open(access_token_path, "r") as read_prev_token:
+        access_token = read_prev_token.read()
     
-    get_token = requests.get(f"https://graph.facebook.com/{user_id}/accounts?access_token={user_access_token}").json()["data"][0]["access_token"]
+    return access_token
+
+def get_access_token():
+    access_token = exchange_token()
+    #print (access_token)
+    
+    user_access_token = requests.get(f"https://graph.facebook.com/v18.0/oauth/access_token? grant_type=fb_exchange_token& client_id=1873945349648612& client_secret=55bba1eeeb0d144e74093c05d8c09010& fb_exchange_token={access_token}").json()
+    #print(user_access_token)
+    
+    with open(access_token_path, "w") as write_token:
+        write_token.write(str(user_access_token["access_token"]))
+    
+    get_token = requests.get(f"https://graph.facebook.com/{user_id}/accounts?access_token={user_access_token}").json()
     
     return get_token
                   
@@ -108,10 +141,14 @@ def post_headline():
             
     print(headline_data)
 
-def post_article(article_list):
+def post_article(article_list, article_summary_list):
     
     db = read_db()
+    article_count = 0
     for get_article in article_list:
+        
+        article_summary = article_summary_list[article_count]
+        article_count+=1
         if get_article not in db["posted"]:
             
             for content_data , photo_data in get_article.items():
@@ -121,7 +158,7 @@ def post_article(article_list):
             new_access_token = get_access_token()
             post_data = {
                 "access_token" : new_access_token,
-                "message" : content+" #mancity",
+                "message" : f"{content} /n{article_summary} /n#mancity",
                 "url" :  photo
             }
             
@@ -135,7 +172,7 @@ def post_article(article_list):
                     json.dump(db, write_db)
                     
             else:
-                postArticle.json()
+                print(postArticle.json())
             
             #postArticle = requests.post(url=f"{fb_post_url}/{fb_pageid}/photos", headers = fb_post_header, data=post_data)
     
@@ -146,15 +183,23 @@ def get_articles():
     
     db = read_db()
     articles_data = []
+    articles_list = []
     
     get_articles = soup.find_all('article', class_ = 'article')
     for article in get_articles:        
         article_content = article.find('div', class_ = 'article-content').find('div', class_='article-excerpt')
+        articles_url = article.find('div', class_ = 'article-content').find('a').get('href')
         
         if article_content!= None:
             content = article_content.find('p')
-            content_article = cut_sentence(content.text)
-            if content_article!=None and len(content_article)>20:                
+            content_article = cut_sentence(content.text)         
+                                                                  
+            if content_article!=None and len(content_article)>20:
+                article_summary = summarise_article(str(articles_url))
+                #time.sleep(10)
+                articles_list.append(article_summary)        
+                #print (articles_url)
+                     
                 article_image = article.find('div', class_ = 'article-image').find('a')
                 content_image = article_image.find('img').get('src')
             
@@ -164,12 +209,12 @@ def get_articles():
                 articles_data.append({content_article:content_image})
         
         #print(article_content)
-    post_article(articles_data)
+    post_article(articles_data, articles_list)
     return articles_data
     #print(get_articles)
     
 schedule.every(30).minutes.do(post_headline)
-schedule.every(30).seconds.do(get_articles)
+schedule.every(5).seconds.do(get_articles)
 
 #print (get_access_token())
 while True:
