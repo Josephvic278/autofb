@@ -136,7 +136,7 @@ def post_articles():
             if confirm_post['image'] not in db_data:               
                 data = {
                     'access_token': get_long_lived_pat(),
-                    'message': f"{confirm_post['article']}\n\n{confirm_post['author']}",
+                    'message': f"{confirm_post['article']}+'#mancity'+\n\n{confirm_post['author']}",
                     'url': confirm_post['image']
                 }
                 print(confirm_post['article'])
