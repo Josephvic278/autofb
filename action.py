@@ -1,6 +1,5 @@
 import requests, json, os, time
 from bs4 import BeautifulSoup
-import 
 
 base_url = "https://www.manchestercity.news/"
 fb_app_id = '1873945349648612'
@@ -102,7 +101,7 @@ def get_long_lived_uat():
             print('error in access token file')
 
 def get_long_lived_pat():
-    tokens_path = os.path.dirname(os.path.abspath(__file__))+'\\tokens.json'
+    tokens_path = os.path.dirname(os.path.abspath(__file__))+r'/tokens.json'
 
     with open(tokens_path, 'r') as tokens_file:
         tokens_json = json.load(tokens_file)
