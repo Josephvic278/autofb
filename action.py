@@ -1,5 +1,6 @@
 import requests, json, os, time
 from bs4 import BeautifulSoup
+import 
 
 base_url = "https://www.manchestercity.news/"
 fb_app_id = '1873945349648612'
@@ -122,7 +123,7 @@ def get_long_lived_pat():
                 print('error retrieving long lived page access token', responce.json())
 
 def post_articles():
-    db_path = os.path.dirname(os.path.abspath(__file__))+r"\db.json"
+    db_path = os.path.dirname(os.path.abspath(__file__))+r"/db.json"
 
     post_feed_url = f'https://graph.facebook.com/v18.0/{fb_page_id}/photos'
     post_feed_header = {
@@ -136,7 +137,7 @@ def post_articles():
             if confirm_post['image'] not in db_data:               
                 data = {
                     'access_token': get_long_lived_pat(),
-                    'message': f"{confirm_post['article']}+'#mancity'+\n\n{confirm_post['author']}",
+                    'message': f"{confirm_post['article']} #mancity \n\n{confirm_post['author']}",
                     'url': confirm_post['image']
                 }
                 print(confirm_post['article'])
