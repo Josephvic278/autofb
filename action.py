@@ -76,7 +76,7 @@ def summarized_article():
     return articles
 
 def get_long_lived_uat():
-    tokens_path = os.path.dirname(os.path.abspath(__file__))+'\\tokens.json'
+    tokens_path = os.path.dirname(os.path.abspath(__file__))+r'/tokens.json'
 
     with open(tokens_path, 'r') as json_file:
         tokens_json = json.load(json_file)
